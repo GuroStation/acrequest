@@ -1,0 +1,1039 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>학교 스마트 냉난방 원격 관리 시스템</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#eff6ff',
+                            500: '#3b82f6',
+                            600: '#2563eb',
+                            700: '#1d4ed8'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- FontAwesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts Inter / Noto Sans KR -->
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Noto Sans KR', sans-serif;
+            transition: background-color 0.3s, color 0.3s;
+        }
+        .animate-fade-in {
+            animation: fadeIn 0.25s ease-in-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(6px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body class="bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-100 antialiased min-h-screen flex flex-col">
+
+    <!-- Navigation Header -->
+    <header class="bg-indigo-700 dark:bg-indigo-950 text-white shadow-md sticky top-0 z-50 transition-colors">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <div class="flex items-center space-x-3 cursor-pointer" onclick="switchTab('user-repair')">
+                <div class="bg-white/10 p-2 rounded-lg text-amber-300 text-xl">
+                    <i class="fa-solid fa-temperature-arrow-up"></i>
+                </div>
+                <div>
+                    <h1 class="font-bold text-lg leading-tight">학교 스마트 냉난방 원격 센터</h1>
+                    <p class="text-xs text-indigo-200 dark:text-indigo-300">교실 환경 관리 & 행정실 원격 접수</p>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-2">
+                <!-- Theme Toggle Button -->
+                <button onclick="toggleDarkMode()" class="p-2 rounded-xl bg-indigo-800/60 dark:bg-slate-800 text-amber-300 hover:text-amber-200 hover:bg-indigo-800 border border-indigo-500/30 transition text-sm flex items-center gap-1.5 px-3">
+                    <i id="theme-icon" class="fa-solid fa-moon"></i>
+                    <span id="theme-text" class="hidden sm:inline text-xs font-medium text-white">다크모드</span>
+                </button>
+
+                <!-- Role Switcher Tabs -->
+                <div class="flex bg-indigo-900/50 dark:bg-slate-900 p-1 rounded-xl border border-indigo-500/30 text-sm">
+                    <button id="nav-user-repair" onclick="switchTab('user-repair')" 
+                        class="px-3 py-1.5 rounded-lg font-medium transition duration-200 flex items-center gap-1.5 bg-white text-indigo-900 shadow">
+                        <i class="fa-solid fa-wrench text-xs"></i>
+                        <span class="hidden sm:inline">수리 접수</span>
+                    </button>
+                    <button id="nav-user-mode" onclick="switchTab('user-mode')" 
+                        class="px-3 py-1.5 rounded-lg font-medium transition duration-200 flex items-center gap-1.5 text-indigo-100 hover:text-white">
+                        <i class="fa-solid fa-repeat text-xs"></i>
+                        <span class="hidden sm:inline">냉난방 전환요청</span>
+                    </button>
+                    <button id="nav-admin" onclick="tryAccessAdminTab()" 
+                        class="px-3 py-1.5 rounded-lg font-medium transition duration-200 flex items-center gap-1.5 text-indigo-100 hover:text-white">
+                        <i class="fa-solid fa-lock text-xs"></i>
+                        <span class="hidden sm:inline">행정실/시설관리</span>
+                        <span id="badge-pending" class="bg-rose-500 text-white text-xs px-1.5 py-0.5 rounded-full ml-1 font-bold">0</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex-1 w-full">
+
+        <!-- Info Banner for Room Controls -->
+        <div class="mb-6 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 rounded-xl p-3.5 flex items-center gap-3 text-sm text-amber-900 dark:text-amber-200">
+            <i class="fa-solid fa-circle-info text-amber-500 text-lg shrink-0"></i>
+            <div>
+                <span class="font-bold">안내사항:</span> 각 교실의 <strong>개별 ON/OFF, 미세 온도 조절, 송풍 작동</strong>은 교실 내 리모컨 및 벽면 제어기로 직접 설정 가능합니다. 본 시스템은 <strong>전체 냉방/난방 모드 전환 요청 및 고장 수리 접수</strong> 전용입니다.
+            </div>
+        </div>
+
+        <!-- ==================== SECTION 1: 고장 수리 접수 (교사/학생) ==================== -->
+        <section id="section-user-repair" class="animate-fade-in space-y-6">
+            <div class="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700">
+                <div class="border-b border-slate-100 dark:border-slate-700 pb-4 mb-6">
+                    <h2 class="text-xl font-bold text-slate-800 dark:text-white flex items-center gap-2">
+                        <i class="fa-solid fa-screwdriver-wrench text-amber-500"></i>
+                        냉난방기 고장 수리 접수
+                    </h2>
+                    <p class="text-slate-500 dark:text-slate-400 text-sm mt-1">교실 및 특별실의 냉난방기 작동 이상 시 접수해주시면 시설관리팀에서 조치합니다.</p>
+                </div>
+
+                <form id="repair-form" onsubmit="handleRepairSubmit(event)" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label class="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">신청자 구분 <span class="text-rose-500">*</span></label>
+                        <select id="repair-role" required class="w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition">
+                            <option value="교사">교사</option>
+                            <option value="학생">학생 (학급 대표)</option>
+                            <option value="기타">기타 교직원</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">성명 <span class="text-rose-500">*</span></label>
+                        <input type="text" id="repair-name" placeholder="예: 김선생 / 홍길동" required class="w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition">
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">장소/교실 위치 <span class="text-rose-500">*</span></label>
+                        <input type="text" id="repair-location" placeholder="예: 2학년 3반 교실 / 과학1실" required class="w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition">
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">증상 분류 <span class="text-rose-500">*</span></label>
+                        <select id="repair-type" required class="w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition">
+                            <option value="전원 불량">전원이 켜지지 않음</option>
+                            <option value="바람 안나옴">바람이 나오지 않음 / 약함</option>
+                            <option value="냉/난방 안됨">바람은 나오나 냉/난방이 안됨</option>
+                            <option value="소음/진동">심한 소음 및 진동 발생</option>
+                            <option value="누수/차단기">물 떨어짐 / 차단기 내려감</option>
+                            <option value="리모컨 고장">교실 제어기/리모컨 작동 불량</option>
+                            <option value="기타">기타 증상</option>
+                        </select>
+                    </div>
+
+                    <div class="md:col-span-2">
+                        <label class="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">상세 고장 증상 <span class="text-rose-500">*</span></label>
+                        <textarea id="repair-desc" rows="3" placeholder="증상을 상세히 적어주시면 빠른 수리에 도움이 됩니다. (예: 켜자마자 에러코드 E04가 떠요)" required class="w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition"></textarea>
+                    </div>
+
+                    <div class="md:col-span-2 flex justify-end">
+                        <button type="submit" class="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-xl shadow-md hover:shadow-lg transition flex items-center gap-2">
+                            <i class="fa-solid fa-paper-plane"></i>
+                            <span>수리 접수하기</span>
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- 내 접수 현황 (사용자용 조회) -->
+            <div class="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700">
+                <h3 class="text-lg font-bold text-slate-800 dark:text-white mb-4 flex items-center gap-2">
+                    <i class="fa-solid fa-clock-rotate-left text-indigo-500"></i>
+                    최근 접수 및 처리 현황
+                </h3>
+                <div id="user-repair-list" class="space-y-3">
+                    <!-- JS 랜더링 -->
+                </div>
+            </div>
+        </section>
+
+
+        <!-- ==================== SECTION 2: 전체 냉난방 전환 요청 (교사/학생) ==================== -->
+        <section id="section-user-mode" class="animate-fade-in space-y-6 hidden">
+            <div class="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700">
+                <div class="border-b border-slate-100 dark:border-slate-700 pb-4 mb-6">
+                    <h2 class="text-xl font-bold text-slate-800 dark:text-white flex items-center gap-2">
+                        <i class="fa-solid fa-repeat text-blue-500"></i>
+                        학교 전체 냉방 / 난방 중앙 전환 요청
+                    </h2>
+                    <p class="text-slate-500 dark:text-slate-400 text-sm mt-1">계절 변화 시 학교 전체 중앙 메인 모드를 <strong>냉방</strong> 또는 <strong>난방</strong>으로 전환을 건의합니다.</p>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                    <!-- Current Status Card Dynamic Theme -->
+                    <div id="card-current-mode" class="bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 rounded-2xl p-4 flex items-center justify-between transition-colors">
+                        <div>
+                            <p class="text-xs font-semibold text-blue-600 dark:text-blue-400 uppercase tracking-wider">현재 중앙 설정 모드</p>
+                            <p id="current-hvac-status" class="text-xl font-extrabold text-blue-900 dark:text-blue-200 mt-1">냉방 모드</p>
+                        </div>
+                        <i id="current-hvac-icon" class="fa-solid fa-snowflake text-3xl text-blue-500"></i>
+                    </div>
+
+                    <div class="bg-slate-50 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-600 rounded-2xl p-4 flex items-center justify-between">
+                        <div>
+                            <p class="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">교실 세부 제어</p>
+                            <p class="text-base font-bold text-slate-800 dark:text-slate-200 mt-1">교실 리모컨 개별 설정 가능</p>
+                        </div>
+                        <i class="fa-solid fa-sliders text-3xl text-slate-400"></i>
+                    </div>
+
+                    <div class="bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 rounded-2xl p-4 flex items-center justify-between">
+                        <div>
+                            <p class="text-xs font-semibold text-amber-600 dark:text-amber-400 uppercase tracking-wider">전환 요청 접수 건수</p>
+                            <p id="mode-request-count-text" class="text-xl font-extrabold text-amber-900 dark:text-amber-200 mt-1">총 0건</p>
+                        </div>
+                        <i class="fa-solid fa-users-rectangle text-3xl text-amber-400"></i>
+                    </div>
+                </div>
+
+                <form id="mode-form" onsubmit="handleModeSubmit(event)" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label class="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">요청자 이름 / 학급(부서) <span class="text-rose-500">*</span></label>
+                        <input type="text" id="mode-requester" placeholder="예: 3학년 2반 교사 홍길동" required class="w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition">
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">희망 전환 모드 선택 <span class="text-rose-500">*</span></label>
+                        <select id="mode-target" required class="w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition">
+                            <option value="난방 모드">🔥 난방 모드로 전체 전환 요청 (추워요)</option>
+                            <option value="냉방 모드">❄️ 냉방 모드로 전체 전환 요청 (더워요)</option>
+                        </select>
+                    </div>
+
+                    <div class="md:col-span-2">
+                        <label class="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">전환 요청 사유 <span class="text-rose-500">*</span></label>
+                        <textarea id="mode-reason" rows="3" placeholder="예: 아침 기온이 급격히 낮아져 교실 실내 온도가 15도 이하입니다. 난방 모드 전환 부탁드립니다." required class="w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition"></textarea>
+                    </div>
+
+                    <div class="md:col-span-2 flex justify-end">
+                        <button type="submit" class="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-xl shadow-md hover:shadow-lg transition flex items-center gap-2">
+                            <i class="fa-solid fa-paper-plane"></i>
+                            <span>행정실에 전환 요청 보내기</span>
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- 전환 요청 목록 -->
+            <div class="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700">
+                <h3 class="text-lg font-bold text-slate-800 dark:text-white mb-4 flex items-center gap-2">
+                    <i class="fa-solid fa-list-check text-blue-500"></i>
+                    접수된 냉난방 전환 요청 목록
+                </h3>
+                <div id="user-mode-list" class="space-y-3">
+                    <!-- JS 랜더링 -->
+                </div>
+            </div>
+        </section>
+
+
+        <!-- ==================== SECTION 3: 행정실 및 시설관리팀 전용 페이지 ==================== -->
+        <section id="section-admin" class="animate-fade-in space-y-6 hidden">
+
+            <!-- Control Header & Filter -->
+            <div class="bg-slate-900 text-white p-6 rounded-2xl shadow-lg flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
+                <div>
+                    <div class="flex items-center gap-2">
+                        <span class="bg-emerald-500 text-slate-950 font-bold text-xs px-2.5 py-1 rounded-full uppercase">행정실 & 시설관리팀</span>
+                        <h2 class="text-xl font-bold">통합 접수 관리 콘솔</h2>
+                    </div>
+                    <p class="text-slate-400 text-sm mt-1">접수된 고장 수리 건을 처리하고 전체 메인 모드(냉방/난방)를 스위칭합니다.</p>
+                </div>
+
+                <!-- Admin Action: School HVAC Mode Control -->
+                <div class="bg-slate-800/80 p-3 rounded-xl border border-slate-700 flex flex-wrap items-center gap-3">
+                    <span class="text-xs text-slate-300 font-medium">현재 전체 중앙 모드:</span>
+                    <span id="admin-current-mode-badge" class="bg-blue-500/20 text-blue-300 border border-blue-500/30 font-bold text-sm px-3 py-1 rounded-lg flex items-center gap-1.5">
+                        <i id="admin-badge-icon" class="fa-solid fa-snowflake"></i>
+                        <span id="admin-badge-text">냉방 모드</span>
+                    </span>
+                    <button onclick="openChangeModeModal()" class="text-xs bg-indigo-600 hover:bg-indigo-500 text-white font-medium px-3 py-1.5 rounded-lg transition shadow">
+                        <i class="fa-solid fa-gear mr-1"></i> 중앙 모드 변경
+                    </button>
+                </div>
+            </div>
+
+            <!-- Dashboard Stats Summary -->
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                <div class="bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm flex items-center justify-between">
+                    <div>
+                        <p class="text-xs font-semibold text-slate-500 dark:text-slate-400">미처리 접수</p>
+                        <p id="stat-pending" class="text-2xl font-bold text-rose-600 dark:text-rose-400 mt-1">0</p>
+                    </div>
+                    <div class="w-10 h-10 rounded-full bg-rose-100 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 flex items-center justify-center font-bold">
+                        <i class="fa-solid fa-triangle-exclamation"></i>
+                    </div>
+                </div>
+                <div class="bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm flex items-center justify-between">
+                    <div>
+                        <p class="text-xs font-semibold text-slate-500 dark:text-slate-400">수리 진행 중</p>
+                        <p id="stat-processing" class="text-2xl font-bold text-amber-600 dark:text-amber-400 mt-1">0</p>
+                    </div>
+                    <div class="w-10 h-10 rounded-full bg-amber-100 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 flex items-center justify-center font-bold">
+                        <i class="fa-solid fa-spinner"></i>
+                    </div>
+                </div>
+                <div class="bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm flex items-center justify-between">
+                    <div>
+                        <p class="text-xs font-semibold text-slate-500 dark:text-slate-400">완료 내역</p>
+                        <p id="stat-completed" class="text-2xl font-bold text-emerald-600 dark:text-emerald-400 mt-1">0</p>
+                    </div>
+                    <div class="w-10 h-10 rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-bold">
+                        <i class="fa-solid fa-circle-check"></i>
+                    </div>
+                </div>
+                <div class="bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm flex items-center justify-between">
+                    <div>
+                        <p class="text-xs font-semibold text-slate-500 dark:text-slate-400">전환 요청 건수</p>
+                        <p id="stat-modereq" class="text-2xl font-bold text-indigo-600 dark:text-indigo-400 mt-1">0</p>
+                    </div>
+                    <div class="w-10 h-10 rounded-full bg-indigo-100 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-bold">
+                        <i class="fa-solid fa-repeat"></i>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Admin Sub Tabs -->
+            <div class="flex border-b border-slate-200 dark:border-slate-700 space-x-4">
+                <button id="admin-subtab-repair" onclick="switchAdminSubTab('repair')" class="pb-3 px-1 border-b-2 border-indigo-600 dark:border-indigo-400 font-bold text-indigo-600 dark:text-indigo-400 flex items-center gap-2">
+                    <i class="fa-solid fa-wrench"></i>
+                    고장 수리 접수 목록
+                </button>
+                <button id="admin-subtab-mode" onclick="switchAdminSubTab('mode')" class="pb-3 px-1 border-b-2 border-transparent font-medium text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white flex items-center gap-2">
+                    <i class="fa-solid fa-repeat"></i>
+                    전환 요청 목록
+                </button>
+            </div>
+
+            <!-- Admin Content 1: Repair List -->
+            <div id="admin-view-repair" class="space-y-4">
+                <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
+                    <div class="p-4 bg-slate-50 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-700 flex flex-wrap gap-3 items-center justify-between">
+                        <h3 class="font-bold text-slate-700 dark:text-white">고장 수리 접수 전체 목록</h3>
+                        <div class="flex items-center gap-2">
+                            <label class="text-xs font-medium text-slate-500 dark:text-slate-400">상태 필터:</label>
+                            <select id="admin-repair-filter" onchange="renderAdminRepairList()" class="text-sm border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-lg px-2.5 py-1">
+                                <option value="ALL">전체 보기</option>
+                                <option value="접수대기">접수대기</option>
+                                <option value="수리중">수리중</option>
+                                <option value="완료">완료</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-sm">
+                            <thead class="bg-slate-100 dark:bg-slate-700/60 text-slate-600 dark:text-slate-300 font-semibold uppercase text-xs">
+                                <tr>
+                                    <th class="p-3.5">접수일시</th>
+                                    <th class="p-3.5">위치/장소</th>
+                                    <th class="p-3.5">접수자</th>
+                                    <th class="p-3.5">증상 분류</th>
+                                    <th class="p-3.5">상세 내용</th>
+                                    <th class="p-3.5">처리 상태</th>
+                                    <th class="p-3.5 text-right">상태 변경 / 처리</th>
+                                </tr>
+                            </thead>
+                            <tbody id="admin-repair-tbody" class="divide-y divide-slate-200 dark:divide-slate-700">
+                                <!-- JS Dynamic Table Rows -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Admin Content 2: Mode Requests -->
+            <div id="admin-view-mode" class="space-y-4 hidden">
+                <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
+                    <div class="p-4 bg-slate-50 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between">
+                        <h3 class="font-bold text-slate-700 dark:text-white">전체 냉난방 모드 전환 건의 및 요청</h3>
+                        <span class="text-xs text-slate-500 dark:text-slate-400">행정실 승인 시 메인 중앙 모드가 자동으로 전환됩니다.</span>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-sm">
+                            <thead class="bg-slate-100 dark:bg-slate-700/60 text-slate-600 dark:text-slate-300 font-semibold uppercase text-xs">
+                                <tr>
+                                    <th class="p-3.5">요청일시</th>
+                                    <th class="p-3.5">요청자</th>
+                                    <th class="p-3.5">희망 모드</th>
+                                    <th class="p-3.5">요청 사유</th>
+                                    <th class="p-3.5">행정실 답변/코멘트</th>
+                                    <th class="p-3.5">처리 상태</th>
+                                    <th class="p-3.5 text-right">조치 액션</th>
+                                </tr>
+                            </thead>
+                            <tbody id="admin-mode-tbody" class="divide-y divide-slate-200 dark:divide-slate-700">
+                                <!-- JS Dynamic Table Rows -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+        </section>
+
+    </main>
+
+    <!-- Modal for Admin HVAC System Central Mode Change -->
+    <div id="mode-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+        <div class="bg-white dark:bg-slate-800 rounded-2xl max-w-md w-full p-6 shadow-2xl animate-fade-in space-y-4 border border-slate-200 dark:border-slate-700">
+            <div class="flex justify-between items-center border-b dark:border-slate-700 pb-3">
+                <h3 class="font-bold text-lg text-slate-800 dark:text-white">학교 중앙 메인 냉난방 전환</h3>
+                <button onclick="closeChangeModeModal()" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+            <p class="text-sm text-slate-600 dark:text-slate-300">행정실 관리자 전용 기능입니다. 학교 전체 메인 운전 모드를 설정합니다.</p>
+            
+            <div class="space-y-3">
+                <label class="block text-sm font-semibold text-slate-700 dark:text-slate-200">설정할 중앙 모드 선택</label>
+                <select id="modal-select-hvac" class="w-full p-3 rounded-xl border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white font-medium">
+                    <option value="냉방 모드">❄️ 냉방 모드 (여름철/지하수 cooling)</option>
+                    <option value="난방 모드">🔥 난방 모드 (겨울철/보일러 heating)</option>
+                </select>
+            </div>
+
+            <div class="flex justify-end space-x-2 pt-2">
+                <button onclick="closeChangeModeModal()" class="px-4 py-2 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 rounded-xl text-slate-700 dark:text-slate-200 text-sm font-medium">취소</button>
+                <button onclick="applyCentralHvacMode()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-medium">모드 적용하기</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal for Admin Password Check -->
+    <div id="admin-auth-modal" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+        <div class="bg-white dark:bg-slate-800 rounded-2xl max-w-sm w-full p-6 shadow-2xl animate-fade-in space-y-4 border border-slate-200 dark:border-slate-700">
+            <div class="text-center space-y-2">
+                <div class="w-12 h-12 bg-indigo-100 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400 rounded-full flex items-center justify-center mx-auto text-xl">
+                    <i class="fa-solid fa-lock"></i>
+                </div>
+                <h3 class="font-bold text-lg text-slate-800 dark:text-white">행정실/시설관리 인증</h3>
+                <p class="text-xs text-slate-500 dark:text-slate-400">행정실 전용 페이지입니다. 비밀번호를 입력해주세요.</p>
+            </div>
+            
+            <div class="space-y-3">
+                <input type="password" id="admin-password-input" placeholder="비밀번호 (예: 9999)" class="w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white text-center text-lg font-bold tracking-widest focus:ring-2 focus:ring-indigo-500 outline-none" onkeyup="handlePasswordKeyUp(event)">
+                <p id="admin-auth-error" class="text-xs text-rose-500 text-center font-semibold hidden">비밀번호가 올바르지 않습니다. (초기 비번: 9999)</p>
+            </div>
+
+            <div class="flex space-x-2 pt-2">
+                <button onclick="closeAdminAuthModal()" class="w-1/2 py-2.5 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 rounded-xl text-slate-700 dark:text-slate-200 text-sm font-medium">취소</button>
+                <button onclick="verifyAdminPassword()" class="w-1/2 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-medium">확인</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal for Admin Commenting -->
+    <div id="comment-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+        <div class="bg-white dark:bg-slate-800 rounded-2xl max-w-md w-full p-6 shadow-2xl animate-fade-in space-y-4 border border-slate-200 dark:border-slate-700">
+            <div class="flex justify-between items-center border-b dark:border-slate-700 pb-3">
+                <h3 id="comment-modal-title" class="font-bold text-lg text-slate-800 dark:text-white">행정실 답변/코멘트 작성</h3>
+                <button onclick="closeCommentModal()" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+            
+            <div class="space-y-3">
+                <label class="block text-sm font-semibold text-slate-700 dark:text-slate-300">신청자 전달 메시지</label>
+                <textarea id="comment-input" rows="4" placeholder="처리 상태 관련 상세 답변이나 조치사항을 적어주세요." class="w-full p-3 rounded-xl border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white text-sm focus:ring-2 focus:ring-indigo-500 outline-none"></textarea>
+            </div>
+
+            <div class="flex justify-end space-x-2 pt-2">
+                <button onclick="closeCommentModal()" class="px-4 py-2 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 rounded-xl text-slate-700 dark:text-slate-200 text-sm font-medium">취소</button>
+                <button onclick="saveAdminComment()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-medium">저장하기</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notification Toast Message Container -->
+    <div id="toast-container" class="fixed bottom-5 right-5 z-50 space-y-2 pointer-events-none"></div>
+
+    <!-- Footer -->
+    <footer class="bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 mt-auto py-4">
+        <div class="max-w-7xl mx-auto px-4 text-center text-xs text-slate-400">
+            학교 시설관리 및 행정실 원격 지원 시스템 &copy; 2026 Smart School HVAC Services. All rights reserved.
+        </div>
+    </footer>
+
+    <!-- Application Logic Script -->
+    <script>
+        // Clean Initial Data State
+        let systemState = {
+            darkMode: false,
+            currentCentralMode: "냉방 모드",
+            repairs: [],
+            modeRequests: [],
+            isAdminAuthenticated: false
+        };
+
+        let activeCommentTarget = { type: null, id: null };
+
+        // Initialize App
+        window.addEventListener('DOMContentLoaded', () => {
+            loadFromStorage();
+            initTheme();
+            updateCentralStatusUI();
+            renderAll();
+        });
+
+        // Password Verification Logic
+        function tryAccessAdminTab() {
+            if (systemState.isAdminAuthenticated) {
+                switchTab('admin');
+            } else {
+                openAdminAuthModal();
+            }
+        }
+
+        function openAdminAuthModal() {
+            document.getElementById('admin-password-input').value = '';
+            document.getElementById('admin-auth-error').classList.add('hidden');
+            document.getElementById('admin-auth-modal').classList.remove('hidden');
+            setTimeout(() => {
+                document.getElementById('admin-password-input').focus();
+            }, 100);
+        }
+
+        function closeAdminAuthModal() {
+            document.getElementById('admin-auth-modal').classList.add('hidden');
+        }
+
+        function handlePasswordKeyUp(e) {
+            if (e.key === 'Enter') {
+                verifyAdminPassword();
+            }
+        }
+
+        function verifyAdminPassword() {
+            const inputPw = document.getElementById('admin-password-input').value.trim();
+            if (inputPw === '9999') {
+                systemState.isAdminAuthenticated = true;
+                closeAdminAuthModal();
+                showToast('행정실 관리자 인증이 완료되었습니다.');
+                switchTab('admin');
+            } else {
+                document.getElementById('admin-auth-error').classList.remove('hidden');
+            }
+        }
+
+        // Theme Toggle Functionality
+        function initTheme() {
+            if (systemState.darkMode) {
+                document.documentElement.classList.add('dark');
+                updateThemeUI(true);
+            } else {
+                document.documentElement.classList.remove('dark');
+                updateThemeUI(false);
+            }
+        }
+
+        function toggleDarkMode() {
+            systemState.darkMode = !systemState.darkMode;
+            if (systemState.darkMode) {
+                document.documentElement.classList.add('dark');
+            } else {
+                document.documentElement.classList.remove('dark');
+            }
+            updateThemeUI(systemState.darkMode);
+            saveToStorage();
+        }
+
+        function updateThemeUI(isDark) {
+            const icon = document.getElementById('theme-icon');
+            const text = document.getElementById('theme-text');
+            if (isDark) {
+                icon.className = 'fa-solid fa-sun';
+                text.textContent = '라이트모드';
+            } else {
+                icon.className = 'fa-solid fa-moon';
+                text.textContent = '다크모드';
+            }
+        }
+
+        // Save & Load Functions
+        function saveToStorage() {
+            try {
+                sessionStorage.setItem('school_hvac_data', JSON.stringify({
+                    darkMode: systemState.darkMode,
+                    currentCentralMode: systemState.currentCentralMode,
+                    repairs: systemState.repairs,
+                    modeRequests: systemState.modeRequests
+                }));
+            } catch (e) {
+                console.log('SessionStorage error:', e);
+            }
+        }
+
+        function loadFromStorage() {
+            try {
+                const stored = sessionStorage.getItem('school_hvac_data');
+                if (stored) {
+                    const parsed = JSON.parse(stored);
+                    systemState.darkMode = parsed.darkMode || false;
+                    systemState.currentCentralMode = parsed.currentCentralMode || "냉방 모드";
+                    systemState.repairs = parsed.repairs || [];
+                    systemState.modeRequests = parsed.modeRequests || [];
+                }
+            } catch (e) {
+                console.log('Storage loading error:', e);
+            }
+        }
+
+        // Tab Switching Logic
+        function switchTab(tabName) {
+            const secRepair = document.getElementById('section-user-repair');
+            const secMode = document.getElementById('section-user-mode');
+            const secAdmin = document.getElementById('section-admin');
+
+            const btnRepair = document.getElementById('nav-user-repair');
+            const btnMode = document.getElementById('nav-user-mode');
+            const btnAdmin = document.getElementById('nav-admin');
+
+            // Hide all
+            secRepair.classList.add('hidden');
+            secMode.classList.add('hidden');
+            secAdmin.classList.add('hidden');
+
+            // Reset Tab Styles
+            const activeClass = "bg-white text-indigo-900 shadow font-bold";
+            const inactiveClass = "text-indigo-100 hover:text-white font-medium";
+
+            btnRepair.className = `px-3 py-1.5 rounded-lg text-sm transition duration-200 flex items-center gap-1.5 ${tabName === 'user-repair' ? activeClass : inactiveClass}`;
+            btnMode.className = `px-3 py-1.5 rounded-lg text-sm transition duration-200 flex items-center gap-1.5 ${tabName === 'user-mode' ? activeClass : inactiveClass}`;
+            btnAdmin.className = `px-3 py-1.5 rounded-lg text-sm transition duration-200 flex items-center gap-1.5 ${tabName === 'admin' ? activeClass : inactiveClass}`;
+
+            if (tabName === 'user-repair') secRepair.classList.remove('hidden');
+            if (tabName === 'user-mode') secMode.classList.remove('hidden');
+            if (tabName === 'admin') secAdmin.classList.remove('hidden');
+
+            renderAll();
+        }
+
+        function switchAdminSubTab(subTab) {
+            const vRepair = document.getElementById('admin-view-repair');
+            const vMode = document.getElementById('admin-view-mode');
+            const tabRepair = document.getElementById('admin-subtab-repair');
+            const tabMode = document.getElementById('admin-subtab-mode');
+
+            if (subTab === 'repair') {
+                vRepair.classList.remove('hidden');
+                vMode.classList.add('hidden');
+                tabRepair.className = "pb-3 px-1 border-b-2 border-indigo-600 dark:border-indigo-400 font-bold text-indigo-600 dark:text-indigo-400 flex items-center gap-2";
+                tabMode.className = "pb-3 px-1 border-b-2 border-transparent font-medium text-slate-500 dark:text-slate-400 hover:text-slate-800 flex items-center gap-2";
+            } else {
+                vRepair.classList.add('hidden');
+                vMode.classList.remove('hidden');
+                tabMode.className = "pb-3 px-1 border-b-2 border-indigo-600 dark:border-indigo-400 font-bold text-indigo-600 dark:text-indigo-400 flex items-center gap-2";
+                tabRepair.className = "pb-3 px-1 border-b-2 border-transparent font-medium text-slate-500 dark:text-slate-400 hover:text-slate-800 flex items-center gap-2";
+            }
+        }
+
+        // Submit Repair Request
+        function handleRepairSubmit(e) {
+            e.preventDefault();
+            const role = document.getElementById('repair-role').value;
+            const name = document.getElementById('repair-name').value.trim();
+            const location = document.getElementById('repair-location').value.trim();
+            const type = document.getElementById('repair-type').value;
+            const desc = document.getElementById('repair-desc').value.trim();
+
+            const newRepair = {
+                id: Date.now(),
+                date: getFormattedDate(),
+                role,
+                name,
+                location,
+                type,
+                desc,
+                status: "접수대기",
+                note: ""
+            };
+
+            systemState.repairs.unshift(newRepair);
+            saveToStorage();
+            document.getElementById('repair-form').reset();
+            showToast('고장 수리 요청이 행정실로 접수되었습니다!');
+            renderAll();
+        }
+
+        // Submit Mode Request
+        function handleModeSubmit(e) {
+            e.preventDefault();
+            const requester = document.getElementById('mode-requester').value.trim();
+            const target = document.getElementById('mode-target').value;
+            const reason = document.getElementById('mode-reason').value.trim();
+
+            const newModeReq = {
+                id: Date.now(),
+                date: getFormattedDate(),
+                requester,
+                target,
+                reason,
+                status: "검토중",
+                note: ""
+            };
+
+            systemState.modeRequests.unshift(newModeReq);
+            saveToStorage();
+            document.getElementById('mode-form').reset();
+            showToast('행정실에 냉난방 전환 건의가 전달되었습니다.');
+            renderAll();
+        }
+
+        // Admin Actions
+        function updateRepairStatus(id, newStatus) {
+            const item = systemState.repairs.find(r => r.id === id);
+            if (item) {
+                item.status = newStatus;
+                if (newStatus === '수리중' && !item.note) {
+                    item.note = "시설관리팀에서 점검 및 수리 진행 중입니다.";
+                } else if (newStatus === '완료' && !item.note) {
+                    item.note = "수리 조치가 완료되었습니다.";
+                } else if (newStatus === '반려' && !item.note) {
+                    item.note = "동일 내역 중복 접수 또는 점검 결과 정상 작동으로 반려되었습니다.";
+                }
+                saveToStorage();
+                showToast(`[${item.location}] 상태가 '${newStatus}'(으)로 변경되었습니다.`);
+                renderAll();
+            }
+        }
+
+        // Fixed Commenting Modal Handlers
+        function openCommentModal(type, id) {
+            activeCommentTarget = { type, id };
+            let currentNote = "";
+            
+            if (type === 'repair') {
+                const item = systemState.repairs.find(r => r.id === id);
+                if (item) currentNote = item.note || "";
+                document.getElementById('comment-modal-title').textContent = "수리 접수 조치 코멘트 작성";
+            } else if (type === 'mode') {
+                const item = systemState.modeRequests.find(m => m.id === id);
+                if (item) currentNote = item.note || "";
+                document.getElementById('comment-modal-title').textContent = "전환 요청 답변 코멘트 작성";
+            }
+
+            document.getElementById('comment-input').value = currentNote;
+            document.getElementById('comment-modal').classList.remove('hidden');
+        }
+
+        function closeCommentModal() {
+            document.getElementById('comment-modal').classList.add('hidden');
+            activeCommentTarget = { type: null, id: null };
+        }
+
+        function saveAdminComment() {
+            const noteText = document.getElementById('comment-input').value.trim();
+            const { type, id } = activeCommentTarget;
+
+            if (type === 'repair') {
+                const item = systemState.repairs.find(r => r.id === id);
+                if (item) item.note = noteText;
+            } else if (type === 'mode') {
+                const item = systemState.modeRequests.find(m => m.id === id);
+                if (item) item.note = noteText;
+            }
+
+            saveToStorage();
+            closeCommentModal();
+            showToast('코멘트가 성공적으로 저장되었습니다.');
+            renderAll();
+        }
+
+        function addAdminNote(id) {
+            openCommentModal('repair', id);
+        }
+
+        function addModeAdminNote(id) {
+            openCommentModal('mode', id);
+        }
+
+        function updateModeReqStatus(id, newStatus) {
+            const item = systemState.modeRequests.find(m => m.id === id);
+            if (item) {
+                item.status = newStatus;
+                if (newStatus === '승인') {
+                    if (!item.note) item.note = '요청이 승인되어 중앙 냉난방 모드가 전환되었습니다.';
+                    systemState.currentCentralMode = item.target;
+                    updateCentralStatusUI();
+                } else if (newStatus === '반려' && !item.note) {
+                    item.note = '학교 운영 상황 및 에너지 적정 온도 정책에 따라 반려되었습니다.';
+                }
+                saveToStorage();
+                showToast(`전환 요청이 '${newStatus}' 상태로 처리되었습니다.`);
+                renderAll();
+            }
+        }
+
+        // Central HVAC Mode Changing
+        function openChangeModeModal() {
+            document.getElementById('modal-select-hvac').value = systemState.currentCentralMode;
+            document.getElementById('mode-modal').classList.remove('hidden');
+        }
+
+        function closeChangeModeModal() {
+            document.getElementById('mode-modal').classList.add('hidden');
+        }
+
+        function applyCentralHvacMode() {
+            const selected = document.getElementById('modal-select-hvac').value;
+            systemState.currentCentralMode = selected;
+            saveToStorage();
+            updateCentralStatusUI();
+            closeChangeModeModal();
+            showToast(`전체 중앙 냉난방 모드가 '${selected}'(으)로 변경되었습니다.`);
+        }
+
+        // Dynamic UI Update
+        function updateCentralStatusUI() {
+            const isCooling = systemState.currentCentralMode.includes('냉방');
+            const statusText = document.getElementById('current-hvac-status');
+            const statusIcon = document.getElementById('current-hvac-icon');
+            const cardCurrentMode = document.getElementById('card-current-mode');
+
+            if (statusText) statusText.textContent = systemState.currentCentralMode;
+
+            if (statusIcon && cardCurrentMode) {
+                if (isCooling) {
+                    statusIcon.className = "fa-solid fa-snowflake text-3xl text-blue-500 animate-pulse";
+                    cardCurrentMode.className = "bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 rounded-2xl p-4 flex items-center justify-between transition-colors";
+                } else {
+                    statusIcon.className = "fa-solid fa-fire-flame-curved text-3xl text-orange-500 animate-pulse";
+                    cardCurrentMode.className = "bg-orange-50 dark:bg-orange-950/40 border border-orange-200 dark:border-orange-800 rounded-2xl p-4 flex items-center justify-between transition-colors";
+                }
+            }
+
+            // Admin Badge
+            const badgeText = document.getElementById('admin-badge-text');
+            const badgeIcon = document.getElementById('admin-badge-icon');
+            const badgeElem = document.getElementById('admin-current-mode-badge');
+
+            if (badgeText && badgeIcon && badgeElem) {
+                badgeText.textContent = systemState.currentCentralMode;
+                if (isCooling) {
+                    badgeIcon.className = "fa-solid fa-snowflake";
+                    badgeElem.className = "bg-blue-500/20 text-blue-300 border border-blue-500/30 font-bold text-sm px-3 py-1 rounded-lg flex items-center gap-1.5";
+                } else {
+                    badgeIcon.className = "fa-solid fa-fire-flame-curved";
+                    badgeElem.className = "bg-orange-500/20 text-orange-300 border border-orange-500/30 font-bold text-sm px-3 py-1 rounded-lg flex items-center gap-1.5";
+                }
+            }
+        }
+
+        // Render Functions
+        function renderAll() {
+            renderUserRepairList();
+            renderUserModeList();
+            renderAdminRepairList();
+            renderAdminModeList();
+            updateStats();
+        }
+
+        function updateStats() {
+            const pending = systemState.repairs.filter(r => r.status === '접수대기').length;
+            const processing = systemState.repairs.filter(r => r.status === '수리중').length;
+            const completed = systemState.repairs.filter(r => r.status === '완료').length;
+            const modeReqs = systemState.modeRequests.length;
+
+            document.getElementById('stat-pending').textContent = pending;
+            document.getElementById('stat-processing').textContent = processing;
+            document.getElementById('stat-completed').textContent = completed;
+            document.getElementById('stat-modereq').textContent = modeReqs;
+
+            // Admin badge
+            const badge = document.getElementById('badge-pending');
+            badge.textContent = pending;
+            if (pending > 0) {
+                badge.classList.remove('hidden');
+            } else {
+                badge.classList.add('hidden');
+            }
+
+            document.getElementById('mode-request-count-text').textContent = `총 ${modeReqs}건`;
+        }
+
+        function renderUserRepairList() {
+            const container = document.getElementById('user-repair-list');
+            if (systemState.repairs.length === 0) {
+                container.innerHTML = `<div class="text-center py-8 text-slate-400 text-sm">접수된 수리 요청 내역이 없습니다.</div>`;
+                return;
+            }
+
+            container.innerHTML = systemState.repairs.map(item => {
+                const badgeColor = item.status === '접수대기' ? 'bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300 border-rose-200 dark:border-rose-800' :
+                                   item.status === '수리중' ? 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300 border-amber-200 dark:border-amber-800' :
+                                   item.status === '완료' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800' :
+                                   'bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-300 border-slate-300';
+                
+                return `
+                    <div class="border border-slate-200 dark:border-slate-700 rounded-xl p-4 hover:border-slate-300 dark:hover:border-slate-600 transition bg-slate-50/50 dark:bg-slate-800/50 flex flex-col md:flex-row justify-between md:items-center gap-3">
+                        <div class="space-y-1">
+                            <div class="flex items-center gap-2">
+                                <span class="font-bold text-slate-800 dark:text-white">${item.location}</span>
+                                <span class="text-xs px-2 py-0.5 rounded-md border ${badgeColor} font-semibold">${item.status}</span>
+                                <span class="text-xs text-slate-400 dark:text-slate-500">${item.date}</span>
+                            </div>
+                            <p class="text-sm text-slate-700 dark:text-slate-300"><strong>[${item.type}]</strong> ${item.desc}</p>
+                            ${item.note ? `<p class="text-xs text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/60 p-2 rounded-lg mt-2 flex items-center gap-1.5"><i class="fa-solid fa-comment-dots"></i> <strong>행정실/시설팀 답변:</strong> ${item.note}</p>` : ''}
+                        </div>
+                        <div class="text-right text-xs text-slate-500 dark:text-slate-400 shrink-0">
+                            신청자: ${item.name} (${item.role})
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function renderUserModeList() {
+            const container = document.getElementById('user-mode-list');
+            if (systemState.modeRequests.length === 0) {
+                container.innerHTML = `<div class="text-center py-8 text-slate-400 text-sm">접수된 전환 요청이 없습니다.</div>`;
+                return;
+            }
+
+            container.innerHTML = systemState.modeRequests.map(item => {
+                const statusBadge = item.status === '승인' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800' :
+                                    item.status === '반려' ? 'bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300 border-rose-200 dark:border-rose-800' :
+                                    'bg-indigo-100 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800';
+
+                return `
+                    <div class="border border-slate-200 dark:border-slate-700 rounded-xl p-4 bg-slate-50/50 dark:bg-slate-800/50 flex flex-col md:flex-row justify-between md:items-center gap-3">
+                        <div class="space-y-1">
+                            <div class="flex items-center gap-2">
+                                <span class="font-bold text-slate-800 dark:text-white">${item.requester}</span>
+                                <span class="text-xs px-2 py-0.5 rounded-md border ${statusBadge} font-semibold">${item.status}</span>
+                                <span class="text-xs text-slate-400 dark:text-slate-500">${item.date}</span>
+                            </div>
+                            <p class="text-sm text-slate-700 dark:text-slate-300">희망 전환: <strong class="text-indigo-600 dark:text-indigo-400">${item.target}</strong></p>
+                            <p class="text-xs text-slate-500 dark:text-slate-400">사유: ${item.reason}</p>
+                            ${item.note ? `<p class="text-xs text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/60 p-2 rounded-lg mt-2 flex items-center gap-1.5"><i class="fa-solid fa-comment-dots"></i> <strong>행정실 답변:</strong> ${item.note}</p>` : ''}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function renderAdminRepairList() {
+            const tbody = document.getElementById('admin-repair-tbody');
+            const filter = document.getElementById('admin-repair-filter').value;
+
+            let list = systemState.repairs;
+            if (filter !== 'ALL') {
+                list = list.filter(r => r.status === filter);
+            }
+
+            if (list.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="7" class="text-center py-8 text-slate-400 text-sm">조건에 해당하는 수리 접수 내역이 없습니다.</td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = list.map(item => {
+                const badgeColor = item.status === '접수대기' ? 'bg-rose-100 text-rose-700 dark:bg-rose-900/60 dark:text-rose-200' :
+                                   item.status === '수리중' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/60 dark:text-amber-200' :
+                                   item.status === '완료' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/60 dark:text-emerald-200' :
+                                   'bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-200';
+
+                return `
+                    <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/50 transition">
+                        <td class="p-3.5 text-xs text-slate-500 dark:text-slate-400 whitespace-nowrap">${item.date}</td>
+                        <td class="p-3.5 font-bold text-slate-800 dark:text-white whitespace-nowrap">${item.location}</td>
+                        <td class="p-3.5 text-xs whitespace-nowrap dark:text-slate-300">${item.name}<br><span class="text-slate-400 dark:text-slate-500">(${item.role})</span></td>
+                        <td class="p-3.5 text-xs font-semibold text-indigo-600 dark:text-indigo-400 whitespace-nowrap">${item.type}</td>
+                        <td class="p-3.5 text-xs text-slate-700 dark:text-slate-300 max-w-xs">
+                            ${item.desc}
+                            ${item.note ? `<div class="text-xs text-indigo-600 dark:text-indigo-400 mt-1 italic font-medium">└ 답변/조치: ${item.note}</div>` : ''}
+                        </td>
+                        <td class="p-3.5 whitespace-nowrap">
+                            <span class="text-xs px-2.5 py-1 rounded-full font-bold ${badgeColor}">${item.status}</span>
+                        </td>
+                        <td class="p-3.5 text-right whitespace-nowrap space-x-1">
+                            <button onclick="updateRepairStatus(${item.id}, '접수대기')" class="px-2 py-1 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 rounded text-xs font-medium">대기</button>
+                            <button onclick="updateRepairStatus(${item.id}, '수리중')" class="px-2 py-1 bg-amber-500 hover:bg-amber-600 text-white rounded text-xs font-medium">수리중</button>
+                            <button onclick="updateRepairStatus(${item.id}, '완료')" class="px-2 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-xs font-medium">완료</button>
+                            <button onclick="updateRepairStatus(${item.id}, '반려')" class="px-2 py-1 bg-rose-500 hover:bg-rose-600 text-white rounded text-xs font-medium">반려</button>
+                            <button onclick="addAdminNote(${item.id})" title="답변/조치 코멘트 달기" class="px-2 py-1 bg-indigo-50 dark:bg-indigo-950/80 hover:bg-indigo-100 dark:hover:bg-indigo-900 text-indigo-600 dark:text-indigo-300 rounded text-xs font-medium"><i class="fa-solid fa-comment-medical"></i> 코멘트</button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function renderAdminModeList() {
+            const tbody = document.getElementById('admin-mode-tbody');
+            if (systemState.modeRequests.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="7" class="text-center py-8 text-slate-400 text-sm">접수된 냉난방 전환 요청 내역이 없습니다.</td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = systemState.modeRequests.map(item => {
+                const statusBadge = item.status === '승인' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/60 dark:text-emerald-200' :
+                                    item.status === '반려' ? 'bg-rose-100 text-rose-700 dark:bg-rose-900/60 dark:text-rose-200' :
+                                    'bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200';
+
+                return `
+                    <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/50 transition">
+                        <td class="p-3.5 text-xs text-slate-500 dark:text-slate-400 whitespace-nowrap">${item.date}</td>
+                        <td class="p-3.5 text-xs font-bold text-slate-800 dark:text-white whitespace-nowrap">${item.requester}</td>
+                        <td class="p-3.5 text-xs font-bold text-indigo-600 dark:text-indigo-400 whitespace-nowrap">${item.target}</td>
+                        <td class="p-3.5 text-xs text-slate-700 dark:text-slate-300 max-w-xs">${item.reason}</td>
+                        <td class="p-3.5 text-xs text-indigo-600 dark:text-indigo-400 max-w-xs font-medium">
+                            ${item.note ? item.note : '<span class="text-slate-400 font-normal">없음</span>'}
+                        </td>
+                        <td class="p-3.5 whitespace-nowrap">
+                            <span class="text-xs px-2.5 py-1 rounded-full font-bold ${statusBadge}">${item.status}</span>
+                        </td>
+                        <td class="p-3.5 text-right whitespace-nowrap space-x-1">
+                            <button onclick="updateModeReqStatus(${item.id}, '승인')" class="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-xs font-medium">승인 및 모드적용</button>
+                            <button onclick="updateModeReqStatus(${item.id}, '반려')" class="px-2.5 py-1 bg-rose-500 hover:bg-rose-600 text-white rounded text-xs font-medium">반려</button>
+                            <button onclick="addModeAdminNote(${item.id})" title="답변 코멘트 수정" class="px-2 py-1 bg-indigo-50 dark:bg-indigo-950/80 hover:bg-indigo-100 dark:hover:bg-indigo-900 text-indigo-600 dark:text-indigo-300 rounded text-xs font-medium"><i class="fa-solid fa-comment-medical"></i> 코멘트</button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        // Helper Utility Functions
+        function getFormattedDate() {
+            const now = new Date();
+            const yyyy = now.getFullYear();
+            const mm = String(now.getMonth() + 1).padStart(2, '0');
+            const dd = String(now.getDate()).padStart(2, '0');
+            const hh = String(now.getHours()).padStart(2, '0');
+            const mi = String(now.getMinutes()).padStart(2, '0');
+            return `${yyyy}-${mm}-${dd} ${hh}:${mi}`;
+        }
+
+        function showToast(message) {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = 'bg-slate-800 dark:bg-slate-700 text-white text-sm px-4 py-3 rounded-xl shadow-xl flex items-center gap-2 pointer-events-auto border border-slate-700 dark:border-slate-600 animate-fade-in';
+            toast.innerHTML = `<i class="fa-solid fa-circle-check text-emerald-400"></i> <span>${message}</span>`;
+            
+            container.appendChild(toast);
+            setTimeout(() => {
+                toast.classList.add('opacity-0', 'transition', 'duration-300');
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+    </script>
+</body>
+</html>
